@@ -1,6 +1,26 @@
 // "How it was built" page. Static content only: renderGuide() returns an HTML string styled with the
 // same Tailwind utilities and component classes (card, ghost-btn, …) as the rest of the app.
 
+import processDiagram1 from './assets/diagrams/process-flow-1.svg';
+import processDiagram2 from './assets/diagrams/process-flow-2.svg';
+import processDiagram3 from './assets/diagrams/process-flow-3.svg';
+import hldDiagram1 from './assets/diagrams/high-level-design-1.svg';
+import hldDiagram2 from './assets/diagrams/high-level-design-2.svg';
+import hldDiagram3 from './assets/diagrams/high-level-design-3.svg';
+import hldDiagram4 from './assets/diagrams/high-level-design-4.svg';
+import lldDiagram1 from './assets/diagrams/low-level-design-1.svg';
+import lldDiagram2 from './assets/diagrams/low-level-design-2.svg';
+import lldDiagram3 from './assets/diagrams/low-level-design-3.svg';
+import lldDiagram4 from './assets/diagrams/low-level-design-4.svg';
+import lldDiagram5 from './assets/diagrams/low-level-design-5.svg';
+import lldDiagram6 from './assets/diagrams/low-level-design-6.svg';
+import lldDiagram7 from './assets/diagrams/low-level-design-7.svg';
+import lldDiagram8 from './assets/diagrams/low-level-design-8.svg';
+import lldDiagram9 from './assets/diagrams/low-level-design-9.svg';
+import lldDiagram10 from './assets/diagrams/low-level-design-10.svg';
+import lldDiagram11 from './assets/diagrams/low-level-design-11.svg';
+import lldDiagram12 from './assets/diagrams/low-level-design-12.svg';
+
 function esc(value: string) {
   return value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 }
@@ -13,6 +33,7 @@ function inline(text: string) {
 
 const p = (text: string) => `<p class="mb-4 text-sm leading-6 text-slate-600">${inline(text)}</p>`;
 const h3 = (text: string) => `<h3 class="mb-3 mt-6 text-sm font-bold text-slate-800">${esc(text)}</h3>`;
+const h4 = (text: string) => `<h4 class="mb-2 mt-5 text-xs font-bold uppercase tracking-wider text-slate-500">${esc(text)}</h4>`;
 const ul = (items: string[]) =>
   `<ul class="mb-4 space-y-2 text-sm leading-6 text-slate-600">${items.map(i => `<li class="flex gap-2.5"><span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400"></span><span>${inline(i)}</span></li>`).join('')}</ul>`;
 const ol = (items: string[]) =>
@@ -79,6 +100,10 @@ function flowDiagram() {
     ])}
   </div>`;
 }
+
+/** A pre-rendered Mermaid diagram (source: docs/*.md). Click it to open it full size. */
+const diagram = (src: string, alt: string) =>
+  `<figure class="mb-5 rounded-2xl border border-slate-100 bg-white p-4"><a href="${src}" target="_blank" rel="noopener" title="Open full size"><img src="${src}" alt="${esc(alt)}" loading="lazy" class="mx-auto h-auto max-w-full"></a></figure>`;
 
 // ---- content
 const SECTIONS: { id: string; title: string; body: () => string }[] = [
@@ -391,6 +416,130 @@ cd ../frontend && npm install && npm run dev   # http://localhost:5173
 
 # tests (throw-away database whose name contains "test")
 cd ../backend && pytest`, true),
+  },
+  {
+    id: 'doc-process', title: 'Process flow diagrams', body: () =>
+      p('These diagrams show what the code does today. Setup commands (migrations and demo data) aren\'t part of the runtime flow, so they\'re left out.') +
+      h3('1. User process flow') +
+      diagram(processDiagram1, '1. User process flow diagram') +
+      ul(['**Session expiry:** if any API call returns 401 while the browser holds a token, `api.ts` clears the token and returns to the login screen. This applies from any step, so the diagram doesn\'t draw an arrow from each one. If the call is the startup `GET /auth/me`, you just see the login screen.', '**Sign out** happens only in the browser. There is no logout API, so the token itself stays valid until it expires.', '**Categories:** the UI only lists them. Create, update and delete exist in the API but have no screen.', '**Errors:** if reloading the list after a filter or page change fails, the app shows an alert.']) +
+      h3('2. Authenticated request flow') +
+      diagram(processDiagram2, '2. Authenticated request flow diagram') +
+      ul(['**Order:** the diagram doesn\'t define which error wins when a request has both invalid input and a bad token.', '**Data isolation:** queries for transactions and dashboard data are limited to the signed-in user\'s ID. Category queries return system categories plus the user\'s own. Another user\'s transaction or category returns 404 when requested by ID. If its category ID is used in a transaction, the API returns 422 "Unknown category_id".', '**Rollback:** a connection is rolled back when it returns to the pool, which discards anything not committed.', '**Public routes:** register, login and health skip the token checks.']) +
+      h3('3. Transaction save flow') +
+      diagram(processDiagram3, '3. Transaction save flow diagram') +
+      ul(['This assumes the request is already authenticated (see flow 2).', 'The database also enforces the category and type match, and requires amounts above zero.', 'The API also supports `PATCH`, which merges the changed fields into the existing row and then runs the same category checks. The UI doesn\'t use it.']),
+  },
+  {
+    id: 'doc-hld', title: 'High-level design', body: () =>
+      p('This describes the app **as built**. See Differences from the target design for what isn\'t built or was built differently.') +
+      h3('1. System context') +
+      diagram(hldDiagram1, '1. System context diagram') +
+      p('The application code calls no external services. The database has an `admin` role, but there are no admin screens or routes.') +
+      h3('2. Components') +
+      diagram(hldDiagram2, '2. Components diagram') +
+      table(['Component', 'Responsibility'], [
+        ['UI', 'Renders screens, holds UI state and handles user actions'],
+        ['API client', 'Makes `fetch` calls, stores the token, turns API errors into messages and handles expired sessions'],
+        ['Routers', 'Define endpoints and contain the business rules and dashboard calculations'],
+        ['Auth dependency and security', 'Verifies the JWT, re-reads the user, and handles Argon2 password hashing'],
+        ['Schemas', 'Validate requests and shape responses'],
+        ['Repositories', 'Hold the SQL used by the routes and the auth dependency'],
+        ['Connection pool', 'Reuses MySQL connections and rolls back uncommitted work on release'],
+        ['Command-line tools', 'Apply SQL migrations and load demo data, each over its own direct connection'],
+      ]) +
+      p('The health route and the command-line tools run SQL directly, without a repository.') +
+      h3('3. Local development setup') +
+      diagram(hldDiagram3, '3. Local development setup diagram') +
+      ul(['With the proxy, the browser sees a single origin. If `VITE_API_BASE_URL` points straight at the API, the origin must be listed in `CORS_ORIGINS`.', 'Backend settings come from environment variables or `backend/.env`.', 'The repository doesn\'t define a production deployment, so none is shown.']) +
+      h3('4. Security and data boundaries') +
+      diagram(hldDiagram4, '4. Security and data boundaries diagram') +
+      ul(['**Passwords:** hashed with Argon2.', '**Sessions:** an HMAC-signed JWT (HS256 by default) that lasts 60 minutes by default. There are no refresh tokens or server-side logout.', '**Token storage:** `localStorage`, so a cross-site scripting (XSS) flaw could read the token. The UI escapes user text before rendering it.', '**Ownership:** transaction and dashboard queries use the signed-in user\'s ID. Category reads include system categories plus the user\'s own.', '**Public routes:** register, login and health don\'t need a token.', '**Not built:** rate limiting. HTTPS isn\'t configured in the repository.']) +
+      h3('5. Differences from the target design') +
+      p('The target is the parent `CLAUDE.md`.') +
+      table(['Area', 'Target', 'As built'], [
+        ['Database access', 'SQLAlchemy Core with `text()`', 'PyMySQL with a hand-written pool'],
+        ['Migrations', 'Alembic', 'Forward-only SQL files and a custom runner'],
+        ['Backend layers', 'Routes, services, repositories', 'No services layer'],
+        ['Sessions', 'Short-lived access tokens plus refresh and revocation; HttpOnly cookies preferred', 'Access token only, in `localStorage`; sign out happens in the browser'],
+        ['Registration', 'Disabled; admins create users', 'Public endpoint, enabled by default (`ALLOW_REGISTRATION`)'],
+        ['Roles', '`roles` tables, or `users.role_id`', '`users.role` ENUM'],
+        ['Features', 'Admin APIs, budgets, reports, CSV export, audit logs, password reset', 'Not built; Budgets and Reports are UI placeholders'],
+        ['Dashboard API', 'Summary, monthly trend, category breakdown, recent transactions', '`summary` and `cashflow`; recent items come from `/transactions`'],
+        ['Frontend structure', 'Pages, components, services and a router in separate modules', 'Mainly `main.ts`, `api.ts` and `guide.ts`; hash-based view switch'],
+        ['Testing', 'Pytest, Vitest and Playwright', 'The repository has backend Pytest tests only'],
+      ]),
+  },
+  {
+    id: 'doc-lld', title: 'Low-level design', body: () =>
+      p('This describes the code **as built**.') +
+      h3('1. Backend module dependencies') +
+      p('Arrows mean "imports". Third-party libraries are left out.') +
+      h4('1.1 Application core and routes') +
+      diagram(lldDiagram1, '1.1 Application core and routes diagram') +
+      h4('1.2 Routes to repositories and schemas') +
+      diagram(lldDiagram2, '1.2 Routes to repositories and schemas diagram') +
+      p('Repositories don\'t import `db`. The caller passes them a connection.') +
+      h4('1.3 Command-line tools') +
+      diagram(lldDiagram3, '1.3 Command-line tools diagram') +
+      h3('2. Frontend modules') +
+      diagram(lldDiagram4, '2. Frontend modules diagram') +
+      p('The boxes inside `main.ts` group related functions and state. They aren\'t separate files or classes.') +
+      h3('3. Classes') +
+      p('`?` marks a value that can be null.') +
+      h4('3.1 Auth and category schemas') +
+      diagram(lldDiagram5, '3.1 Auth and category schemas diagram') +
+      p('Emails are lower-cased. Passwords can be up to 128 characters, with a minimum of 8 to register and 1 to log in.') +
+      h4('3.2 Transaction schemas') +
+      diagram(lldDiagram6, '3.2 Transaction schemas diagram') +
+      p('`TransactionPatch` fields may be omitted, but the route rejects an explicit null with 422. `MoneyOut` is a `Decimal` that\'s sent as a JSON number.') +
+      h4('3.3 Dashboard schemas') +
+      diagram(lldDiagram7, '3.3 Dashboard schemas diagram') +
+      h4('3.4 Settings and connection pool') +
+      diagram(lldDiagram8, '3.4 Settings and connection pool diagram') +
+      p('`db.py` also has these module functions: `connect`, `get_pool`, `close_pool`, `get_db` and `db_connection`.') +
+      h3('4. Database') +
+      diagram(lldDiagram9, '4. Database diagram') +
+      p('A category has zero or one owner: system categories have none. `schema_migrations` has no relationships; the migration runner creates it.') +
+      table(['Rule', 'Definition'], [
+        ['Category and type match', 'FK `transactions(category_id, type)` → `categories(id, type)`; deleting a referenced category is restricted'],
+        ['Positive amount', '`CHECK (amount > 0)`'],
+        ['Deleting a user', 'Cascades to their categories and transactions through the `user_id` foreign keys'],
+        ['Unique keys', '`users(email)`, `categories(id, type)`, `categories(user_id, type, name)`'],
+        ['Indexes', '`categories(user_id)`, `transactions(user_id, txn_date, id)`, `transactions(user_id, type, txn_date)`'],
+      ]) +
+      p('MySQL allows repeated `NULL` values in a unique key, so the name key doesn\'t stop duplicate system categories. Those are managed by migrations.') +
+      p('The database doesn\'t enforce that a transaction\'s category belongs to the same user. The transaction routes check it with `_check_category`.') +
+      h3('5. Sequences') +
+      h4('5.1 Login') +
+      diagram(lldDiagram10, '5.1 Login diagram') +
+      p('Request validation happens before the route body runs. Invalid input returns 422.') +
+      h4('5.2 Create a transaction') +
+      diagram(lldDiagram11, '5.2 Create a transaction diagram') +
+      p('This assumes the request body passes validation. The connection goes back to the pool through `get_db`, which rolls back anything uncommitted.') +
+      h4('5.3 Dashboard load') +
+      p('This shows the successful path. Each request is authenticated as in 5.2.') +
+      diagram(lldDiagram12, '5.3 Dashboard load diagram') +
+      h3('6. API map') +
+      p('Paths start with `/api/v1`. "Auth" means the route requires a signed-in user, which also calls `users.get_by_id`.') +
+      table(['Endpoint', 'Auth', 'Route function', 'Request → response', 'Repository calls in the route'], [
+        ['`POST /auth/register`', 'No', '`register`', '`RegisterIn` → `TokenOut`', '`users.create`, `users.get_by_id`'],
+        ['`POST /auth/login`', 'No', '`login`', '`LoginIn` → `TokenOut`', '`users.get_by_email`, `users.record_login`'],
+        ['`GET /auth/me`', 'Yes', '`me`', 'none → `UserOut`', 'none'],
+        ['`GET /categories`', 'Yes', '`list_categories`', 'query `type` → list of `CategoryOut`', '`categories.list_visible`'],
+        ['`POST /categories`', 'Yes', '`create_category`', '`CategoryIn` → `CategoryOut`', '`categories.create`, `get_owned`'],
+        ['`PATCH /categories/{id}`', 'Yes', '`update_category`', '`CategoryUpdate` → `CategoryOut`', '`categories.get_visible`, `update`, `get_owned`'],
+        ['`DELETE /categories/{id}`', 'Yes', '`delete_category`', 'none → 204', '`categories.get_visible`, `delete`'],
+        ['`GET /transactions`', 'Yes', '`list_transactions`', 'filters and paging → `TransactionPage`', '`transactions.search`'],
+        ['`POST /transactions`', 'Yes', '`create_transaction`', '`TransactionIn` → `TransactionOut`', '`categories.get_visible`, `transactions.create`, `get`'],
+        ['`GET /transactions/{id}`', 'Yes', '`get_transaction`', 'none → `TransactionOut`', '`transactions.get`'],
+        ['`PUT /transactions/{id}`', 'Yes', '`replace_transaction`', '`TransactionIn` → `TransactionOut`', '`transactions.get`, `categories.get_visible`, `transactions.update`, `get`'],
+        ['`PATCH /transactions/{id}`', 'Yes', '`patch_transaction`', '`TransactionPatch` → `TransactionOut`', 'Same as `PUT`'],
+        ['`DELETE /transactions/{id}`', 'Yes', '`delete_transaction`', 'none → 204', '`transactions.delete`'],
+        ['`GET /dashboard/summary`', 'Yes', '`summary`', 'query `month` → `DashboardSummary`', '`month_totals`, `expense_by_category`, `all_time_balance`'],
+        ['`GET /dashboard/cashflow`', 'Yes', '`cashflow`', 'query `months`, `end_month` → `Cashflow`', '`monthly_cashflow`'],
+        ['`GET /health`', 'No', '`health` in `main.py`', 'none → status, or 503', 'none; runs `SELECT 1` directly'],
+      ]),
   },
 ];
 
